@@ -1,4 +1,4 @@
-// models/User.js
+// models/User.js - UPDATED
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
@@ -29,6 +29,23 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["buyer", "seller", "admin"],
     default: "buyer"
+  },
+
+  // ✅ ADDED: Profile image field
+  profile_image: {
+    type: String,
+    default: ""
+  },
+
+  // ✅ ADDED: Security question fields for password reset
+  security_question: {
+    type: String,
+    default: ""
+  },
+
+  security_answer: {
+    type: String,
+    default: ""
   },
 
   createdAt: {
