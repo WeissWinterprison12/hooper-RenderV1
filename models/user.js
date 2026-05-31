@@ -1,4 +1,4 @@
-// models/User.js - UPDATED
+// models/user.js
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
@@ -31,19 +31,46 @@ const userSchema = new mongoose.Schema({
     default: "buyer"
   },
 
-  // ✅ ADDED: Profile image field
   profile_image: {
     type: String,
     default: ""
   },
 
-  // ✅ ADDED: Security question fields for password reset
+  // ✅ SECURITY QUESTION FIELDS (already exist, just making sure)
   security_question: {
     type: String,
     default: ""
   },
 
   security_answer: {
+    type: String,
+    default: ""
+  },
+
+  // ✅ FULL NAME
+  fullName: {
+    type: String,
+    default: ""
+  },
+
+  // ✅ BIRTHDAY
+  birthday: {
+    month: {
+      type: String,
+      default: ""
+    },
+    day: {
+      type: Number,
+      default: null
+    },
+    year: {
+      type: Number,
+      default: null
+    }
+  },
+
+  // ✅ ADDRESS
+  address: {
     type: String,
     default: ""
   },

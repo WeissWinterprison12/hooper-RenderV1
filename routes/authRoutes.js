@@ -9,9 +9,19 @@ const router = express.Router();
 // REGISTER
 router.post("/register", async (req, res) => {
   try {
-    const { username, email, password, role } = req.body;
+    // ✅ Extract all fields from request body
+    const { 
+      username, 
+      email, 
+      password, 
+      role,
+      fullName,
+      birthday,
+      address,
+      security_question,
+      security_answer
+    } = req.body;
 
-    // Check if email already exists
     const existingEmail = await User.findOne({ email });
 
     if (existingEmail) {
@@ -20,7 +30,6 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    // Check if username already exists
     const existingUsername = await User.findOne({ username });
 
     if (existingUsername) {
@@ -31,16 +40,27 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // ✅ Hash security answer if provided
+    let hashedSecurityAnswer = "";
+    if (security_answer) {
+      hashedSecurityAnswer = await bcrypt.hash(security_answer, 10);
+    }
+
+    // ✅ Include all fields when creating user
     const user = new User({
       username,
       email,
       password: hashedPassword,
       role: role || "buyer",
+      fullName: fullName || "",
+      birthday: birthday || { month: "", day: null, year: null },
+      address: address || "",
+      security_question: security_question || "",
+      security_answer: hashedSecurityAnswer || ""
     });
 
     await user.save();
 
-    // ✅ Return user data so frontend can use it
     res.status(201).json({
       message: "Registration successful",
       user: {
@@ -87,7 +107,6 @@ router.post("/login", async (req, res) => {
       }
     );
 
-    // ✅ Return user with _id (not id) to match frontend
     return res.status(200).json({
       message: "Login successful",
       token,
@@ -97,6 +116,51 @@ router.post("/login", async (req, res) => {
         email: user.email,
         role: user.role,
       },
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ✅ RESET PASSWORD (with security question)
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { email, security_question, security_answer, newPassword } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Email not found",
+      });
+    }
+
+    // Check security question
+    if (user.security_question !== security_question) {
+      return res.status(400).json({
+        message: "Security question does not match",
+      });
+    }
+
+    // Check security answer
+    const isAnswerMatch = await bcrypt.compare(security_answer, user.security_answer);
+    
+    if (!isAnswerMatch) {
+      return res.status(400).json({
+        message: "Security answer is incorrect",
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({
+      message: "Password reset successful! You can now login with your new password.",
     });
 
   } catch (error) {
