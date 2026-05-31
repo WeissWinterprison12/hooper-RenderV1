@@ -18,6 +18,7 @@ router.post("/register", async (req, res) => {
       fullName,
       birthday,
       address,
+      contact,  // ✅ ADD THIS
       security_question,
       security_answer
     } = req.body;
@@ -55,6 +56,7 @@ router.post("/register", async (req, res) => {
       fullName: fullName || "",
       birthday: birthday || { month: "", day: null, year: null },
       address: address || "",
+      contact: contact || "",  // ✅ ADD THIS
       security_question: security_question || "",
       security_answer: hashedSecurityAnswer || ""
     });

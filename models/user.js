@@ -36,7 +36,6 @@ const userSchema = new mongoose.Schema({
     default: ""
   },
 
-  // ✅ SECURITY QUESTION FIELDS (already exist, just making sure)
   security_question: {
     type: String,
     default: ""
@@ -47,13 +46,11 @@ const userSchema = new mongoose.Schema({
     default: ""
   },
 
-  // ✅ FULL NAME
   fullName: {
     type: String,
     default: ""
   },
 
-  // ✅ BIRTHDAY
   birthday: {
     month: {
       type: String,
@@ -69,8 +66,13 @@ const userSchema = new mongoose.Schema({
     }
   },
 
-  // ✅ ADDRESS
   address: {
+    type: String,
+    default: ""
+  },
+
+  // ✅ ADD CONTACT FIELD
+  contact: {
     type: String,
     default: ""
   },
