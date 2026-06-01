@@ -13,10 +13,8 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// ✅ Backend URL for returning full image URLs
 const BACKEND_URL = "https://hooper-renderv1-4.onrender.com";
 
-// Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, "../uploads/profiles");
@@ -33,7 +31,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+  limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -46,7 +44,6 @@ const upload = multer({
   }
 });
 
-// GET USER PROFILE BY ID
 router.get("/:id", async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -59,7 +56,6 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     
-    // ✅ Convert profile_image to full URL
     const userObj = user.toObject();
     if (userObj.profile_image && !userObj.profile_image.startsWith("http")) {
       userObj.profile_image = `${BACKEND_URL}${userObj.profile_image}`;
@@ -72,7 +68,6 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// UPDATE USER PROFILE (text fields only)
 router.put("/:id", async (req, res) => {
   try {
     const userId = req.params.id;
@@ -99,16 +94,10 @@ router.put("/:id", async (req, res) => {
     
     const updateData = {};
     
-    // Full Name
     if (fullName) updateData.fullName = fullName;
-    
-    // Username
     if (username) updateData.username = username;
-    
-    // Address
     if (address) updateData.address = address;
     
-    // Birthday
     if (birthday) {
       try {
         updateData.birthday = typeof birthday === "string" ? JSON.parse(birthday) : birthday;
@@ -117,13 +106,11 @@ router.put("/:id", async (req, res) => {
       }
     }
     
-    // Security Question
     if (security_question) updateData.security_question = security_question;
     if (security_answer) {
       updateData.security_answer = await bcrypt.hash(security_answer, 10);
     }
     
-    // Password Change
     if (currentPassword && newPassword) {
       const isMatch = await bcrypt.compare(currentPassword, user.password);
       
@@ -134,13 +121,13 @@ router.put("/:id", async (req, res) => {
       updateData.password = await bcrypt.hash(newPassword, 10);
     }
     
+    // ✅ FIX: Use returnDocument instead of new
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: updateData },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).select("-password");
     
-    // ✅ Convert profile_image to full URL
     const userObj = updatedUser.toObject();
     if (userObj.profile_image && !userObj.profile_image.startsWith("http")) {
       userObj.profile_image = `${BACKEND_URL}${userObj.profile_image}`;
@@ -153,7 +140,6 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// UPDATE USER PROFILE IMAGE (file upload only)
 router.put("/:id/image", upload.single("profile_image"), async (req, res) => {
   try {
     const userId = req.params.id;
@@ -174,7 +160,6 @@ router.put("/:id/image", upload.single("profile_image"), async (req, res) => {
     
     const updateData = {};
     
-    // Delete old image if exists (and it's a local file)
     if (user.profile_image && !user.profile_image.startsWith("http")) {
       try {
         const oldPath = path.join(__dirname, "../", user.profile_image);
@@ -186,16 +171,15 @@ router.put("/:id/image", upload.single("profile_image"), async (req, res) => {
       }
     }
     
-    // Save new image path
     updateData.profile_image = `/uploads/profiles/${req.file.filename}`;
     
+    // ✅ FIX: Use returnDocument instead of new
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: updateData },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).select("-password");
     
-    // ✅ Return with FULL URL
     const response = {
       ...updatedUser.toObject(),
       profile_image: `${BACKEND_URL}/uploads/profiles/${req.file.filename}`
