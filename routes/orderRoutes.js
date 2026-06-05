@@ -30,11 +30,9 @@ router.get("/seller/:sellerId", async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid seller ID" });
     }
     
-    // First, get all products by this seller
     const products = await Product.find({ seller_id: req.params.sellerId });
     const productIds = products.map(p => p._id);
     
-    // Then, find orders that contain any of these products
     const orders = await Order.find({
       "items.product_id": { $in: productIds }
     })
@@ -49,7 +47,7 @@ router.get("/seller/:sellerId", async (req, res) => {
   }
 });
 
-// CREATE ORDER
+// ✅ CREATE ORDER
 router.post("/", async (req, res) => {
   try {
     const { buyer_id, items, payment_method } = req.body;
@@ -70,6 +68,30 @@ router.post("/", async (req, res) => {
     await order.populate("items.product_id");
 
     res.status(201).json({ success: true, order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ✅ UPDATE ORDER (for cancellation)
+router.put("/:id", async (req, res) => {
+  try {
+    const { status, cancel_reason } = req.body;
+    
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { 
+        status: status || "cancelled",
+        cancel_reason: cancel_reason || null
+      },
+      { new: true }
+    );
+    
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+    
+    res.json({ success: true, order });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
