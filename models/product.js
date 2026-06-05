@@ -1,12 +1,18 @@
+// models/product.js
 import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema({
+  // ✅ FIX: Change from ObjectId to String
   seller_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    type: String,  // STRING, not ObjectId
+    required: true,
+    index: true
   },
 
-  product_name: String,
+  product_name: {
+    type: String,
+    required: true
+  },
   description: String,
   category: String,
   price: Number,
@@ -15,11 +21,10 @@ const productSchema = new mongoose.Schema({
 
   createdAt: {
     type: Date,
-    default: Date.now,
+    default: Date.now
   },
 });
 
-const Product =
-  mongoose.models.Product || mongoose.model("Product", productSchema);
+const Product = mongoose.models.Product || mongoose.model("Product", productSchema);
 
 export default Product;

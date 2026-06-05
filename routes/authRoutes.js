@@ -1,4 +1,3 @@
-// routes/authRoutes.js
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -6,10 +5,9 @@ import User from "../models/user.js";
 
 const router = express.Router();
 
-// REGISTER
 router.post("/register", async (req, res) => {
   try {
-    // ✅ Extract all fields from request body
+
     const { 
       username, 
       email, 
@@ -18,7 +16,7 @@ router.post("/register", async (req, res) => {
       fullName,
       birthday,
       address,
-      contact,  // ✅ ADD THIS
+      contact,
       security_question,
       security_answer
     } = req.body;
@@ -41,13 +39,11 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ✅ Hash security answer if provided
     let hashedSecurityAnswer = "";
     if (security_answer) {
       hashedSecurityAnswer = await bcrypt.hash(security_answer, 10);
     }
 
-    // ✅ Include all fields when creating user
     const user = new User({
       username,
       email,
@@ -77,7 +73,6 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// LOGIN
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -125,7 +120,6 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ✅ RESET PASSWORD (with security question)
 router.post("/reset-password", async (req, res) => {
   try {
     const { email, security_question, security_answer, newPassword } = req.body;
@@ -138,14 +132,12 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    // Check security question
     if (user.security_question !== security_question) {
       return res.status(400).json({
         message: "Security question does not match",
       });
     }
 
-    // Check security answer
     const isAnswerMatch = await bcrypt.compare(security_answer, user.security_answer);
     
     if (!isAnswerMatch) {
@@ -154,7 +146,6 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update password
