@@ -1,4 +1,3 @@
-// routes/productRoutes.js
 import express from "express";
 import Product from "../models/product.js";
 import multer from "multer";
@@ -11,7 +10,6 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// ✅ Multer config for product images
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, "../uploads/products");
@@ -38,14 +36,12 @@ const upload = multer({
   }
 });
 
-// ✅ CREATE PRODUCT - ✅ FIX: Keep seller_id as STRING
 router.post("/", upload.single("image"), async (req, res) => {
   try {
     const { seller_id, product_name, description, category, price, stock } = req.body;
     
-    // ✅ Keep seller_id as STRING (not ObjectId)
     const productData = {
-      seller_id: seller_id, // ALWAYS STRING
+      seller_id: seller_id,
       product_name,
       description: description || "",
       category: category || "general",
@@ -62,7 +58,6 @@ router.post("/", upload.single("image"), async (req, res) => {
     
     console.log("✅ Product created:", product._id);
     
-    // ✅ FIX: Return consistent format
     res.status(201).json({
       success: true,
       product
@@ -73,7 +68,6 @@ router.post("/", upload.single("image"), async (req, res) => {
   }
 });
 
-// ✅ GET ALL PRODUCTS
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find().sort({ createdAt: -1 });
@@ -84,12 +78,10 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ GET PRODUCTS BY SELLER ID - ✅ FIX: No ObjectId conversion
 router.get("/seller/:sellerId", async (req, res) => {
   try {
     const { sellerId } = req.params;
     
-    // ✅ Use sellerId as STRING directly (no conversion)
     const products = await Product.find({ seller_id: sellerId }).sort({ createdAt: -1 });
     
     console.log("📡 Found products:", products.length, "for seller:", sellerId);
@@ -101,7 +93,6 @@ router.get("/seller/:sellerId", async (req, res) => {
   }
 });
 
-// ✅ UPDATE PRODUCT
 router.put("/:id", upload.single("image"), async (req, res) => {
   try {
     const { product_name, description, category, price, stock } = req.body;
@@ -136,7 +127,6 @@ router.put("/:id", upload.single("image"), async (req, res) => {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
     
-    // ✅ FIX: Return consistent format
     res.json({ success: true, product });
   } catch (error) {
     console.error("❌ Error updating product:", error);
@@ -144,7 +134,6 @@ router.put("/:id", upload.single("image"), async (req, res) => {
   }
 });
 
-// ✅ DELETE PRODUCT
 router.delete("/:id", async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
@@ -169,23 +158,20 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// ✅ REDUCE STOCK WHEN ORDER PLACED
 router.put("/reduce-stock/:id", async (req, res) => {
   try {
     const { quantity } = req.body;
     const productId = req.params.id;
     
     console.log("📡 Reducing stock for product:", productId, "quantity:", quantity);
-    
-    // Find product first
+
     const product = await Product.findById(productId);
     
     if (!product) {
       console.log("❌ Product not found:", productId);
       return res.status(404).json({ success: false, message: "Product not found" });
     }
-    
-    // Reduce stock
+
     const currentStock = parseInt(product.stock) || 0;
     const reduceQty = parseInt(quantity) || 1;
     const newStock = Math.max(0, currentStock - reduceQty);
