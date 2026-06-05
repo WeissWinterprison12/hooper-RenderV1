@@ -1,4 +1,4 @@
-// routes/orderRoutes.js - FIXED
+// routes/orderRoutes.js
 import express from "express";
 import Order from "../models/order.js";
 import Product from "../models/product.js";
@@ -73,25 +73,56 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ✅ UPDATE ORDER (for cancellation)
+// ✅ UPDATE ORDER (for cancellation, ship out, deliver, complete)
 router.put("/:id", async (req, res) => {
   try {
-    const { status, cancel_reason } = req.body;
+    const { status, cancel_reason, cancellation_approved } = req.body;
     
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { 
-        status: status || "cancelled",
-        cancel_reason: cancel_reason || null
+        status: status || "pending",
+        cancel_reason: cancel_reason || null,
+        cancellation_approved: cancellation_approved || false
       },
       { new: true }
-    );
+    ).populate("items.product_id");
     
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
     
     res.json({ success: true, order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ✅ REDUCE STOCK WHEN ORDER PLACED
+router.put("/reduce-stock/:id", async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    const productId = req.params.id;
+    
+    // Find product first
+    const product = await Product.findById(productId);
+    
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    
+    // Reduce stock
+    const newStock = (parseInt(product.stock) || 0) - (parseInt(quantity) || 1);
+    
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      { stock: Math.max(0, newStock) },
+      { new: true }
+    );
+    
+    console.log("📡 Stock reduced:", updatedProduct);
+    
+    res.json({ success: true, product: updatedProduct });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
