@@ -169,4 +169,42 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// ✅ REDUCE STOCK WHEN ORDER PLACED
+router.put("/reduce-stock/:id", async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    const productId = req.params.id;
+    
+    console.log("📡 Reducing stock for product:", productId, "quantity:", quantity);
+    
+    // Find product first
+    const product = await Product.findById(productId);
+    
+    if (!product) {
+      console.log("❌ Product not found:", productId);
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    
+    // Reduce stock
+    const currentStock = parseInt(product.stock) || 0;
+    const reduceQty = parseInt(quantity) || 1;
+    const newStock = Math.max(0, currentStock - reduceQty);
+    
+    console.log("📡 Stock change:", currentStock, "->", newStock);
+    
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      { stock: newStock },
+      { new: true }
+    );
+    
+    console.log("📡 Stock reduced successfully:", updatedProduct);
+    
+    res.json({ success: true, product: updatedProduct });
+  } catch (error) {
+    console.error("❌ Error reducing stock:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;
