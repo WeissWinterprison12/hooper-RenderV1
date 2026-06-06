@@ -1,3 +1,4 @@
+// productRoutes.js
 import express from "express";
 import Product from "../models/product.js";
 import multer from "multer";
@@ -36,6 +37,7 @@ const upload = multer({
   }
 });
 
+// ✅ CREATE PRODUCT
 router.post("/", upload.single("image"), async (req, res) => {
   try {
     const { seller_id, product_name, description, category, price, stock } = req.body;
@@ -68,6 +70,7 @@ router.post("/", upload.single("image"), async (req, res) => {
   }
 });
 
+// ✅ GET ALL PRODUCTS
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find().sort({ createdAt: -1 });
@@ -78,6 +81,7 @@ router.get("/", async (req, res) => {
   }
 });
 
+// ✅ GET PRODUCTS BY SELLER
 router.get("/seller/:sellerId", async (req, res) => {
   try {
     const { sellerId } = req.params;
@@ -93,6 +97,23 @@ router.get("/seller/:sellerId", async (req, res) => {
   }
 });
 
+// ✅ GET SINGLE PRODUCT
+router.get("/:id", async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    
+    res.json({ success: true, product });
+  } catch (error) {
+    console.error("❌ Error fetching product:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ✅ UPDATE PRODUCT
 router.put("/:id", upload.single("image"), async (req, res) => {
   try {
     const { product_name, description, category, price, stock } = req.body;
@@ -134,6 +155,7 @@ router.put("/:id", upload.single("image"), async (req, res) => {
   }
 });
 
+// ✅ DELETE PRODUCT
 router.delete("/:id", async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
@@ -158,7 +180,8 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-router.put("/reduce-stock/:id", async (req, res) => {
+// ✅ REDUCE STOCK - FIXED ROUTE PATH (/api/products/:id/reduce-stock)
+router.put("/:id/reduce-stock", async (req, res) => {
   try {
     const { quantity } = req.body;
     const productId = req.params.id;
