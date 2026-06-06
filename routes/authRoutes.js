@@ -1,3 +1,4 @@
+// routes/authRoutes.js
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -7,7 +8,6 @@ const router = express.Router();
 
 router.post("/register", async (req, res) => {
   try {
-
     const { 
       username, 
       email, 
@@ -21,7 +21,8 @@ router.post("/register", async (req, res) => {
       security_answer
     } = req.body;
 
-    const existingEmail = await User.findOne({ email });
+    // ✅ FIX: Check existing email (case-insensitive)
+    const existingEmail = await User.findOne({ email: email.toLowerCase() });
 
     if (existingEmail) {
       return res.status(400).json({
@@ -29,7 +30,10 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    const existingUsername = await User.findOne({ username });
+    // ✅ FIX: Check existing username (case-insensitive)
+    const existingUsername = await User.findOne({ 
+      username: { $regex: new RegExp(`^${username}$`, 'i') } 
+    });
 
     if (existingUsername) {
       return res.status(400).json({
@@ -46,13 +50,13 @@ router.post("/register", async (req, res) => {
 
     const user = new User({
       username,
-      email,
+      email: email.toLowerCase(), // ✅ Store email in lowercase
       password: hashedPassword,
       role: role || "buyer",
       fullName: fullName || "",
       birthday: birthday || { month: "", day: null, year: null },
       address: address || "",
-      contact: contact || "",  // ✅ ADD THIS
+      contact: contact || "",
       security_question: security_question || "",
       security_answer: hashedSecurityAnswer || ""
     });
@@ -77,11 +81,28 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Please provide both email/username and password",
+      });
+    }
+
+    let user;
+    
+    // ✅ FIX: Check if input is email or username (case-insensitive)
+    if (email.includes('@')) {
+      // For email - use lowercase
+      user = await User.findOne({ email: email.toLowerCase() });
+    } else {
+      // For username - use regex with 'i' flag
+      user = await User.findOne({ 
+        username: { $regex: new RegExp(`^${email}$`, 'i') } 
+      });
+    }
 
     if (!user) {
       return res.status(400).json({
-        message: "Invalid email or password",
+        message: "Invalid credentials",
       });
     }
 
@@ -89,7 +110,7 @@ router.post("/login", async (req, res) => {
 
     if (!isMatch) {
       return res.status(400).json({
-        message: "Invalid email or password",
+        message: "Invalid credentials",
       });
     }
 
@@ -124,11 +145,20 @@ router.post("/reset-password", async (req, res) => {
   try {
     const { email, security_question, security_answer, newPassword } = req.body;
 
-    const user = await User.findOne({ email });
+    let user;
+    
+    // ✅ FIX: Handle both email and username (case-insensitive)
+    if (email.includes('@')) {
+      user = await User.findOne({ email: email.toLowerCase() });
+    } else {
+      user = await User.findOne({ 
+        username: { $regex: new RegExp(`^${email}$`, 'i') } 
+      });
+    }
 
     if (!user) {
       return res.status(400).json({
-        message: "Email not found",
+        message: "User not found",
       });
     }
 
@@ -147,8 +177,6 @@ router.post("/reset-password", async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update password
     user.password = hashedPassword;
     await user.save();
 
