@@ -155,7 +155,6 @@ router.put("/:id", upload.single("image"), async (req, res) => {
   }
 });
 
-// ✅ DELETE PRODUCT
 router.delete("/:id", async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
