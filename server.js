@@ -1,200 +1,56 @@
-// messageRoutes.js
 import express from "express";
 import mongoose from "mongoose";
-import Message from "../models/message.js";
+import cors from "cors";
+import dotenv from "dotenv";
+import dns from "dns";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Create a new message
-router.post("/", async (req, res) => {
-  try {
-    const { sender_id, receiver_id, message } = req.body;
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
+dns.setDefaultResultOrder("ipv4first");
 
-    if (!sender_id || !receiver_id || !message) {
-      return res.status(400).json({ 
-        success: false,
-        message: "sender_id, receiver_id, and message are required" 
-      });
-    }
+import authRoutes from "./routes/authRoutes.js";
+import productRoutes from "./routes/productRoutes.js";
+import cartRoutes from "./routes/cartRoutes.js";
+import orderRoutes from "./routes/orderRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
-    // Validate ObjectId format
-    if (!mongoose.Types.ObjectId.isValid(sender_id) || !mongoose.Types.ObjectId.isValid(receiver_id)) {
-      return res.status(400).json({ 
-        success: false,
-        message: "Invalid sender_id or receiver_id format" 
-      });
-    }
+dotenv.config();
 
-    const newMessage = new Message({
-      sender_id: new mongoose.Types.ObjectId(sender_id),
-      receiver_id: new mongoose.Types.ObjectId(receiver_id),
-      message,
-      sent_at: new Date()
-    });
+const app = express();
 
-    await newMessage.save();
+app.use(cors({
+  origin: "*",
+  credentials: true
+}));
 
-    res.status(201).json({
-      success: true,
-      message: "Message sent successfully",
-      data: newMessage
-    });
-  } catch (error) {
-    console.error("❌ Error sending message:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((err) => console.log("❌ MongoDB Error:", err));
+
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/users", userRoutes);
+
+app.get("/", (req, res) => {
+  res.send("Hooper Fits API Running");
 });
 
-// Get all messages (admin)
-router.get("/", async (req, res) => {
-  try {
-    const messages = await Message.find()
-      .populate("sender_id", "username fullName email")
-      .populate("receiver_id", "username fullName email")
-      .sort({ sent_at: -1 });
+const PORT = process.env.PORT || 5000;
 
-    res.json({ success: true, messages });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
-
-// Get messages for a SELLER
-router.get("/seller/:sellerId", async (req, res) => {
-  try {
-    const { sellerId } = req.params;
-
-    // Validate and convert to ObjectId
-    if (!mongoose.Types.ObjectId.isValid(sellerId)) {
-      return res.status(400).json({ success: false, message: "Invalid seller ID" });
-    }
-
-    const objectId = new mongoose.Types.ObjectId(sellerId);
-
-    const messages = await Message.find({ 
-      receiver_id: objectId 
-    })
-      .populate("sender_id", "username fullName email profile_image")
-      .sort({ sent_at: -1 });
-
-    const messagesWithRead = messages.map(msg => ({
-      ...msg.toObject(),
-      is_read: msg.is_read || false,
-      fullname: msg.sender_id?.fullName || msg.sender_id?.username || "Buyer",
-      sender_username: msg.sender_id?.username || "buyer"
-    }));
-
-    res.json({ success: true, messages: messagesWithRead });
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// ✅ FIXED: Get INBOX messages for a BUYER
-router.get("/buyer/:buyerId", async (req, res) => {
-  try {
-    const { buyerId } = req.params;
-
-    // Validate and convert to ObjectId
-    if (!mongoose.Types.ObjectId.isValid(buyerId)) {
-      return res.status(400).json({ success: false, message: "Invalid buyer ID" });
-    }
-
-    const objectId = new mongoose.Types.ObjectId(buyerId);
-
-    const messages = await Message.find({ 
-      receiver_id: objectId 
-    })
-      .populate("sender_id", "username fullName email profile_image")
-      .populate("receiver_id", "username fullName email")
-      .sort({ sent_at: -1 });
-
-    const messagesWithRead = messages.map(msg => ({
-      ...msg.toObject(),
-      is_read: msg.is_read || false,
-      fullname: msg.sender_id?.fullName || msg.sender_id?.username || "Seller",
-      sender_username: msg.sender_id?.username || "seller"
-    }));
-
-    res.json({ success: true, messages: messagesWithRead });
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// ✅ FIXED: Get SENT messages for a BUYER
-router.get("/buyer/:buyerId/sent", async (req, res) => {
-  try {
-    const { buyerId } = req.params;
-
-    // Validate and convert to ObjectId
-    if (!mongoose.Types.ObjectId.isValid(buyerId)) {
-      return res.status(400).json({ success: false, message: "Invalid buyer ID" });
-    }
-
-    const objectId = new mongoose.Types.ObjectId(buyerId);
-
-    const messages = await Message.find({ 
-      sender_id: objectId 
-    })
-      .populate("receiver_id", "username fullName email profile_image")
-      .sort({ sent_at: -1 });
-
-    const messagesWithData = messages.map(msg => ({
-      ...msg.toObject(),
-      fullname: msg.receiver_id?.fullName || msg.receiver_id?.username || "Seller",
-      sender_username: msg.receiver_id?.username || "seller"
-    }));
-
-    res.json({ success: true, messages: messagesWithData });
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Mark message as read
-router.put("/:id/read", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid message ID" });
-    }
-
-    const message = await Message.findById(id);
-
-    if (!message) {
-      return res.status(404).json({ success: false, message: "Message not found" });
-    }
-
-    message.is_read = true;
-    message.status = "read";
-    await message.save();
-
-    res.json({ success: true, message: "Message marked as read" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Delete a message
-router.delete("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid message ID" });
-    }
-
-    await Message.findByIdAndDelete(id);
-
-    res.json({ success: true, message: "Message deleted" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-export default router;

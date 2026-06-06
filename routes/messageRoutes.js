@@ -1,8 +1,104 @@
 // messageRoutes.js
 import express from "express";
+import mongoose from "mongoose";
 import Message from "../models/message.js";
 
 const router = express.Router();
+
+// ============================================
+// MORE SPECIFIC ROUTES MUST COME FIRST
+// ============================================
+
+// ✅ FIXED: Get SENT messages for a BUYER (must come BEFORE /buyer/:buyerId)
+router.get("/buyer/:buyerId/sent", async (req, res) => {
+  try {
+    const { buyerId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(buyerId)) {
+      return res.status(400).json({ success: false, message: "Invalid buyer ID" });
+    }
+
+    const objectId = new mongoose.Types.ObjectId(buyerId);
+
+    const messages = await Message.find({ sender_id: objectId })
+      .populate("receiver_id", "username fullName email profile_image")
+      .sort({ sent_at: -1 });
+
+    const messagesWithData = messages.map(msg => ({
+      ...msg.toObject(),
+      fullname: msg.receiver_id?.fullName || msg.receiver_id?.username || "Seller",
+      sender_username: msg.receiver_id?.username || "seller"
+    }));
+
+    res.json({ success: true, messages: messagesWithData });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get messages for a BUYER (comes AFTER /buyer/:buyerId/sent)
+router.get("/buyer/:buyerId", async (req, res) => {
+  try {
+    const { buyerId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(buyerId)) {
+      return res.status(400).json({ success: false, message: "Invalid buyer ID" });
+    }
+
+    const objectId = new mongoose.Types.ObjectId(buyerId);
+
+    const messages = await Message.find({ receiver_id: objectId })
+      .populate("sender_id", "username fullName email profile_image")
+      .populate("receiver_id", "username fullName email")
+      .sort({ sent_at: -1 });
+
+    const messagesWithRead = messages.map(msg => ({
+      ...msg.toObject(),
+      is_read: msg.is_read || false,
+      fullname: msg.sender_id?.fullName || msg.sender_id?.username || "Seller",
+      sender_username: msg.sender_id?.username || "seller"
+    }));
+
+    res.json({ success: true, messages: messagesWithRead });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get messages for a SELLER
+router.get("/seller/:sellerId", async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(sellerId)) {
+      return res.status(400).json({ success: false, message: "Invalid seller ID" });
+    }
+
+    const objectId = new mongoose.Types.ObjectId(sellerId);
+
+    const messages = await Message.find({ receiver_id: objectId })
+      .populate("sender_id", "username fullName email profile_image")
+      .sort({ sent_at: -1 });
+
+    const messagesWithRead = messages.map(msg => ({
+      ...msg.toObject(),
+      is_read: msg.is_read || false,
+      fullname: msg.sender_id?.fullName || msg.sender_id?.username || "Buyer",
+      sender_username: msg.sender_id?.username || "buyer"
+    }));
+
+    res.json({ success: true, messages: messagesWithRead });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// LESS SPECIFIC ROUTES COME LATER
+// ============================================
 
 // Create a new message
 router.post("/", async (req, res) => {
@@ -16,9 +112,16 @@ router.post("/", async (req, res) => {
       });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(sender_id) || !mongoose.Types.ObjectId.isValid(receiver_id)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid sender_id or receiver_id format" 
+      });
+    }
+
     const newMessage = new Message({
-      sender_id,
-      receiver_id,
+      sender_id: new mongoose.Types.ObjectId(sender_id),
+      receiver_id: new mongoose.Types.ObjectId(receiver_id),
       message,
       sent_at: new Date()
     });
@@ -31,6 +134,7 @@ router.post("/", async (req, res) => {
       data: newMessage
     });
   } catch (error) {
+    console.error("❌ Error sending message:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -49,85 +153,14 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Get messages for a SELLER (used in seller_messages.jsx)
-router.get("/seller/:sellerId", async (req, res) => {
-  try {
-    const { sellerId } = req.params;
-
-    const messages = await Message.find({ 
-      receiver_id: sellerId 
-    })
-      .populate("sender_id", "username fullName email profile_image")
-      .sort({ sent_at: -1 });
-
-    // Add is_read field for frontend
-    const messagesWithRead = messages.map(msg => ({
-      ...msg.toObject(),
-      is_read: msg.is_read || false,
-      fullname: msg.sender_id?.fullName || msg.sender_id?.username || "Buyer",
-      sender_username: msg.sender_id?.username || "buyer"
-    }));
-
-    res.json({ success: true, messages: messagesWithRead });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// ✅ NEW: Get messages for a BUYER
-router.get("/buyer/:buyerId", async (req, res) => {
-  try {
-    const { buyerId } = req.params;
-
-    const messages = await Message.find({ 
-      receiver_id: buyerId 
-    })
-      .populate("sender_id", "username fullName email profile_image")
-      .populate("receiver_id", "username fullName email")
-      .sort({ sent_at: -1 });
-
-    // Add is_read field for frontend
-    const messagesWithRead = messages.map(msg => ({
-      ...msg.toObject(),
-      is_read: msg.is_read || false,
-      fullname: msg.sender_id?.fullName || msg.sender_id?.username || "Seller",
-      sender_username: msg.sender_id?.username || "seller"
-    }));
-
-    res.json({ success: true, messages: messagesWithRead });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// ✅ NEW: Get messages SENT by a buyer (their sent messages)
-router.get("/buyer/:buyerId/sent", async (req, res) => {
-  try {
-    const { buyerId } = req.params;
-
-    const messages = await Message.find({ 
-      sender_id: buyerId 
-    })
-      .populate("receiver_id", "username fullName email profile_image")
-      .sort({ sent_at: -1 });
-
-    const messagesWithData = messages.map(msg => ({
-      ...msg.toObject(),
-      fullname: msg.receiver_id?.fullName || msg.receiver_id?.username || "Seller",
-      sender_username: msg.receiver_id?.username || "seller"
-    }));
-
-    res.json({ success: true, messages: messagesWithData });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Mark message as read
+// Mark message as read (must come AFTER /buyer/:buyerId, /seller/:sellerId)
 router.put("/:id/read", async (req, res) => {
   try {
     const { id } = req.params;
-    const { seller_id } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid message ID" });
+    }
 
     const message = await Message.findById(id);
 
@@ -145,10 +178,14 @@ router.put("/:id/read", async (req, res) => {
   }
 });
 
-// Delete a message
+// Delete a message (must be LAST)
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid message ID" });
+    }
 
     await Message.findByIdAndDelete(id);
 

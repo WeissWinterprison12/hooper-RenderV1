@@ -44,6 +44,31 @@ const upload = multer({
   }
 });
 
+// ✅ IMPORTANT: More specific routes MUST come BEFORE parameterized routes like /:id
+
+// GET all sellers - Put this FIRST (before /:id)
+router.get("/sellers", async (req, res) => {
+  try {
+    const sellers = await User.find({ role: "seller" })
+      .select("username fullName email profile_image")
+      .lean();
+
+    // Add full URL to profile images
+    const sellersWithImages = sellers.map(seller => ({
+      ...seller,
+      profile_image: seller.profile_image 
+        ? `${BACKEND_URL}${seller.profile_image}`
+        : null
+    }));
+
+    res.json({ success: true, users: sellersWithImages });
+  } catch (error) {
+    console.error("Error fetching sellers:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET user by ID - This comes AFTER /sellers
 router.get("/:id", async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -68,6 +93,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// PUT update user
 router.put("/:id", async (req, res) => {
   try {
     const userId = req.params.id;
@@ -121,7 +147,6 @@ router.put("/:id", async (req, res) => {
       updateData.password = await bcrypt.hash(newPassword, 10);
     }
     
-    // ✅ FIX: Use returnDocument instead of new
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: updateData },
@@ -140,6 +165,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// PUT update user profile image
 router.put("/:id/image", upload.single("profile_image"), async (req, res) => {
   try {
     const userId = req.params.id;
@@ -173,7 +199,6 @@ router.put("/:id/image", upload.single("profile_image"), async (req, res) => {
     
     updateData.profile_image = `/uploads/profiles/${req.file.filename}`;
     
-    // ✅ FIX: Use returnDocument instead of new
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: updateData },
